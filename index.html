@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <title>Paycheck Balancer</title>
+
+  <!-- PWA / iOS meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Paycheck Balancer">
+  <meta name="theme-color" content="#080810" />
+  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Paycheck+Balancer%22%2C%22short_name%22%3A%22Paycheck%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23080810%22%2C%22theme_color%22%3A%22%23080810%22%2C%22start_url%22%3A%22.%22%7D" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div id="app">
+    <div class="status-bar"></div>
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <button class="icon-btn" id="menuBtn" aria-label="Menu">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="header-wordmark">
+        <span class="wordmark-icon"><i class="fas fa-wallet"></i></span>
+        <span class="wordmark-text">Paycheck Balancer</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="themeBtn" aria-label="Theme">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button class="icon-btn icon-btn--accent" id="newPeriodBtn" aria-label="New Period" title="Start New Pay Period">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- SIDE DRAWER OVERLAY -->
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+
+    <!-- SIDE DRAWER MENU -->
+    <nav class="side-drawer" id="sideDrawer">
+      <div class="drawer-header">
+        <div class="drawer-logo">
+          <div class="drawer-logo-icon"><i class="fas fa-wallet"></i></div>
+          <div>
+            <div class="drawer-logo-name">Paycheck</div>
+            <div class="drawer-logo-sub">Balancer</div>
+          </div>
+        </div>
+        <button class="drawer-close" id="drawerClose" aria-label="Close Menu">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="drawer-menu">
+        <button class="drawer-item active" data-view="dashboard">
+          <span class="drawer-item-icon"><i class="fas fa-chart-line"></i></span>
+          <span>Dashboard</span>
+        </button>
+        <button class="drawer-item" data-view="categories">
+          <span class="drawer-item-icon"><i class="fas fa-tags"></i></span>
+          <span>Budget</span>
+        </button>
+        <button class="drawer-item" data-view="spend">
+          <span class="drawer-item-icon"><i class="fas fa-shopping-cart"></i></span>
+          <span>Spend</span>
+        </button>
+        <button class="drawer-item" data-view="history">
+          <span class="drawer-item-icon"><i class="fas fa-history"></i></span>
+          <span>History</span>
+        </button>
+        <button class="drawer-item" data-view="recurring">
+          <span class="drawer-item-icon"><i class="fas fa-clock"></i></span>
+          <span>Bills</span>
+        </button>
+        <button class="drawer-item" data-view="savings">
+          <span class="drawer-item-icon"><i class="fas fa-piggy-bank"></i></span>
+          <span>Savings</span>
+        </button>
+        <button class="drawer-item" data-view="analytics">
+          <span class="drawer-item-icon"><i class="fas fa-chart-pie"></i></span>
+          <span>Analytics</span>
+        </button>
+        <button class="drawer-item" data-view="settings">
+          <span class="drawer-item-icon"><i class="fas fa-cog"></i></span>
+          <span>Settings</span>
+        </button>
+      </div>
+      <div class="drawer-footer">
+        <div class="drawer-version">v2.0 · Paycheck Balancer</div>
+      </div>
+    </nav>
+
+    <!-- VIEWS -->
+    <div id="views">
+      <section class="view active" id="view-dashboard">
+        <div id="dashboard-content"></div>
+      </section>
+      <section class="view" id="view-categories">
+        <div id="categories-content"></div>
+      </section>
+      <section class="view" id="view-spend">
+        <div id="spend-content"></div>
+      </section>
+      <section class="view" id="view-history">
+        <div id="history-content"></div>
+      </section>
+      <section class="view" id="view-recurring">
+        <div id="recurring-content"></div>
+      </section>
+      <section class="view" id="view-savings">
+        <div id="savings-content"></div>
+      </section>
+      <section class="view" id="view-analytics">
+        <div id="analytics-content"></div>
+      </section>
+      <section class="view" id="view-settings">
+        <div id="settings-content"></div>
+      </section>
+    </div>
+
+    <!-- FAB -->
+    <button id="fab" title="Quick add spending">
+      <i class="fas fa-plus"></i>
+    </button>
+  </div>
+
+  <!-- MODALS -->
+
+  <!-- Quick Add Spending Modal -->
+  <div class="modal-overlay" id="spendModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Add Spending</div>
+      <div class="field">
+        <label>Category</label>
+        <select id="m-spendCat"></select>
+      </div>
+      <div class="field">
+        <label>Amount</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="m-spendAmt" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Note <span class="field-optional">(optional)</span></label>
+        <input type="text" id="m-spendNote" placeholder="e.g., Grocery run" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="m-spendSubmit"><i class="fas fa-check"></i> Add Spending</button>
+        <button class="btn btn-ghost" id="m-spendCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Spending Modal -->
+  <div class="modal-overlay" id="editSpendModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Edit Spending</div>
+      <div class="field">
+        <label>Category</label>
+        <select id="e-spendCat"></select>
+      </div>
+      <div class="field">
+        <label>Amount</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="e-spendAmt" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Note <span class="field-optional">(optional)</span></label>
+        <input type="text" id="e-spendNote" placeholder="e.g., Grocery run" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="e-spendSubmit"><i class="fas fa-save"></i> Update</button>
+        <button class="btn btn-ghost" id="e-spendCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Category Modal -->
+  <div class="modal-overlay" id="catModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Add Category</div>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="m-catName" placeholder="e.g., Groceries" />
+      </div>
+      <div class="field">
+        <label>Allocation %</label>
+        <div class="input-suffix-wrap">
+          <input type="number" id="m-catPct" inputmode="decimal" placeholder="25" min="0" max="100" step="0.1" />
+          <span class="input-suffix">%</span>
+        </div>
+      </div>
+      <div class="preset-chips" id="presetChips"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="m-catSubmit"><i class="fas fa-plus"></i> Add Category</button>
+        <button class="btn btn-ghost" id="m-catCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paycheck Modal -->
+  <div class="modal-overlay" id="paycheckModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Set Paycheck</div>
+      <div class="field">
+        <label>Paycheck Amount</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="m-paycheckAmt" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Pay Period</label>
+        <select id="m-payPeriod">
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="semimonthly">Semi-monthly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+      <div class="modal-divider"><span>+ Optional: Add External Funds</span></div>
+      <div class="field">
+        <label>Source <span class="field-optional">(e.g., freelance, bonus)</span></label>
+        <input type="text" id="m-extSource" placeholder="e.g., Side project payment" />
+      </div>
+      <div class="field">
+        <label>Amount</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="m-extAmt" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="m-paycheckSubmit"><i class="fas fa-check"></i> Save</button>
+        <button class="btn btn-ghost" id="m-paycheckCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Goal Modal -->
+  <div class="modal-overlay" id="goalModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Add Savings Goal</div>
+      <div class="field">
+        <label>Goal Name</label>
+        <input type="text" id="m-goalName" placeholder="e.g., Vacation, Emergency Fund" />
+      </div>
+      <div class="field">
+        <label>Target Amount</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="m-goalTarget" inputmode="decimal" placeholder="1,000.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Current Saved <span class="field-optional">(optional)</span></label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="m-goalSaved" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Target Date <span class="field-optional">(optional)</span></label>
+        <input type="date" id="m-goalDate" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="m-goalSubmit"><i class="fas fa-bullseye"></i> Add Goal</button>
+        <button class="btn btn-ghost" id="m-goalCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contribute to Goal Modal -->
+  <div class="modal-overlay" id="contributeModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="contributeModalTitle">Contribute to Goal</div>
+      <input type="hidden" id="contributeGoalId" value="">
+      <div class="contrib-summary">
+        <div class="contrib-summary-row">
+          <span>Currently saved</span>
+          <span id="contribCurrentSaved" class="contrib-val contrib-val--green">$0</span>
+        </div>
+        <div class="contrib-summary-row">
+          <span>Target</span>
+          <span id="contribTargetAmount" class="contrib-val">$0</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Amount to Contribute</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="contributeAmount" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Note <span class="field-optional">(optional)</span></label>
+        <input type="text" id="contributeNote" placeholder="e.g., from paycheck, bonus..." />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="contributeSubmit"><i class="fas fa-plus-circle"></i> Add Contribution</button>
+        <button class="btn btn-ghost" id="contributeCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withdraw Rollback Modal -->
+  <div class="modal-overlay" id="withdrawModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Withdraw from Rollback</div>
+      <div class="withdraw-available">
+        <span class="withdraw-label">Available</span>
+        <span id="w-available" class="withdraw-amount">$0.00</span>
+      </div>
+      <div class="field">
+        <label>Amount to Withdraw</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="w-amount" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="w-submit"><i class="fas fa-arrow-down"></i> Withdraw to Paycheck</button>
+        <button class="btn btn-ghost" id="w-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Dialog -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+      <div class="confirm-icon"><i class="fas fa-question-circle"></i></div>
+      <div class="confirm-title" id="confirmTitle"></div>
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost" id="confirmNo">Cancel</button>
+        <button class="btn btn-primary" id="confirmYes">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear Data Modal -->
+  <div class="modal-overlay" id="clearDataModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title danger-title"><i class="fas fa-exclamation-triangle"></i> Clear All Data</div>
+      <div class="danger-warning">
+        <p><strong>This action is irreversible.</strong> All your budgeting data will be permanently deleted.</p>
+        <p class="danger-confirm-prompt">Type <strong>CONFIRM</strong> below to proceed:</p>
+      </div>
+      <div class="field">
+        <input type="text" id="clearDataConfirmInput" placeholder="Type CONFIRM here" autocomplete="off" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" id="clearDataConfirmBtn" disabled><i class="fas fa-trash-alt"></i> Delete All Data</button>
+        <button class="btn btn-ghost" id="clearDataCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribute Preview Modal -->
+  <div class="modal-overlay" id="distributePreviewModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Distribute Remaining %</div>
+      <div id="distributePreviewContent" style="margin: 16px 0;"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="distributeCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="distributeConfirmBtn"><i class="fas fa-check"></i> Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Category Modal -->
+  <div class="modal-overlay" id="deleteCategoryModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title danger-title">Delete Category</div>
+      <div id="deleteCategoryContent"></div>
+      <div class="field" id="deleteCategoryConfirmField" style="display: none;">
+        <label>Type <strong style="color: var(--red);">CONFIRM</strong> to delete:</label>
+        <input type="text" id="deleteCategoryConfirmInput" placeholder="Type CONFIRM here" autocomplete="off" />
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="deleteCategoryCancelBtn">Cancel</button>
+        <button class="btn btn-danger" id="deleteCategoryConfirmBtn"><i class="fas fa-trash-alt"></i> Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recurring Transaction Modal -->
+  <div class="modal-overlay" id="recurringModal">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="recurringModalTitle">Add Recurring Transaction</div>
+      <input type="hidden" id="recurringEditId" value="">
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="recurringName" placeholder="e.g., Netflix Subscription" />
+      </div>
+      <div class="field">
+        <label>Amount</label>
+        <div class="input-prefix-wrap">
+          <span class="input-prefix">$</span>
+          <input type="text" id="recurringAmount" inputmode="decimal" placeholder="0.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <select id="recurringCategory"></select>
+      </div>
+      <div class="field">
+        <label>Frequency</label>
+        <select id="recurringFrequency">
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Start Date</label>
+          <input type="date" id="recurringStartDate" />
+        </div>
+        <div class="field">
+          <label>End Date <span class="field-optional">(opt.)</span></label>
+          <input type="date" id="recurringEndDate" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="checkbox-label">
+          <input type="checkbox" id="recurringActive" checked />
+          <span class="checkbox-custom"></span>
+          <span>Active</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="recurringSubmit"><i class="fas fa-save"></i> Save</button>
+        <button class="btn btn-ghost" id="recurringCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Financial Assistant Modal -->
+  <div class="modal-overlay" id="aiAssistantModal">
+    <div class="modal-sheet" style="max-height: 85vh;">
+      <div class="modal-handle"></div>
+      <div class="modal-title">
+        <i class="fas fa-robot" style="color: var(--accent2);"></i> 
+        Financial Assistant
+      </div>
+      
+      <div id="aiChatMessages" style="height: 400px; overflow-y: auto; padding: 4px; margin-bottom: 16px;">
+        <div class="ai-message ai-bot">
+          <i class="fas fa-robot"></i>
+          <div>Hello. I am your financial assistant. Ask me about your budget, spending patterns, savings goals, or upcoming bills.</div>
+        </div>
+      </div>
+      
+      <div class="ai-suggestions" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+        <button class="ai-suggestion-chip">Analyze my spending</button>
+        <button class="ai-suggestion-chip">How can I save more?</button>
+        <button class="ai-suggestion-chip">Am I overspending?</button>
+        <button class="ai-suggestion-chip">Show me budget risks</button>
+        <button class="ai-suggestion-chip">Track savings progress</button>
+      </div>
+      
+      <div class="field" style="margin-bottom: 0;">
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="aiInput" placeholder="Ask about your finances..." style="flex: 1;" />
+          <button class="btn btn-primary" id="aiSendBtn" style="width: auto; padding: 12px 20px;">
+            <i class="fas fa-paper-plane"></i> Send
+          </button>
+        </div>
+      </div>
+      
+      <div class="modal-actions" style="margin-top: 12px;">
+        <button class="btn btn-ghost" id="aiCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Welcome Modal -->
+  <div class="welcome-overlay" id="welcomeModal">
+    <div class="welcome-sheet">
+      <div class="welcome-icon">
+        <i class="fas fa-wallet"></i>
+      </div>
+      <h2 class="welcome-title">Welcome to<br>Paycheck Balancer</h2>
+      <p class="welcome-sub">Your personal finance companion for paycheck-based budgeting.</p>
+      <div class="welcome-steps">
+        <div class="welcome-step">
+          <div class="welcome-step-num">1</div>
+          <div class="welcome-step-text">
+            <strong>Add Budget Categories</strong>
+            <span>Rent, groceries, fun money — slice up your paycheck</span>
+          </div>
+        </div>
+        <div class="welcome-step">
+          <div class="welcome-step-num">2</div>
+          <div class="welcome-step-text">
+            <strong>Set Your Paycheck Amount</strong>
+            <span>Allocations are calculated automatically</span>
+          </div>
+        </div>
+        <div class="welcome-step">
+          <div class="welcome-step-num">3</div>
+          <div class="welcome-step-text">
+            <strong>Track Your Spending</strong>
+            <span>Log expenses and watch your budget in real-time</span>
+          </div>
+        </div>
+      </div>
+      <div class="welcome-actions">
+        <button class="btn btn-ghost" id="welcomeLoadDemo">Load Demo</button>
+        <button class="btn btn-primary" id="welcomeGetStarted">Get Started <i class="fas fa-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script src="app.js" defer></script>
+</body>
+
+</html>
