@@ -5,7 +5,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
+  <!-- FIXED: Proper viewport for mobile with touch optimization -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
   <title>Paycheck Balancer</title>
 
   <!-- PWA / iOS meta -->
@@ -13,7 +14,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Paycheck Balancer">
   <meta name="theme-color" content="#080810" />
-  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Paycheck+Balancer%22%2C%22short_name%22%3A%22Paycheck%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23080810%22%2C%22theme_color%22%3A%22%23080810%22%2C%22start_url%22%3A%22.%22%7D" />
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- Complete PWA manifest -->
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Paycheck%20Balancer%22,%22short_name%22:%22Paycheck%22,%22display%22:%22standalone%22,%22background_color%22:%22%23080810%22,%22theme_color%22:%22%23080810%22,%22start_url%22:%22.%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%3E%3Crect%20width='512'%20height='512'%20fill='%236c5ce7'/%3E%3Ctext%20x='256'%20y='368'%20text-anchor='middle'%20fill='white'%20font-size='280'%20font-family='Arial'%3E💰%3C/text%3E%3C/svg%3E%22,%22sizes%22:%22512x512%22,%22type%22:%22image/svg+xml%22}]}">
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -24,10 +28,10 @@
 <body>
 
   <div id="app">
-    <div class="status-bar"></div>
+    <div class="status-bar" id="statusBar"></div>
 
     <!-- HEADER -->
-    <header class="app-header">
+    <header class="app-header" id="appHeader">
       <button class="icon-btn" id="menuBtn" aria-label="Menu">
         <i class="fas fa-bars"></i>
       </button>
@@ -150,7 +154,7 @@
         <label>Amount</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="m-spendAmt" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="m-spendAmt" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -177,7 +181,7 @@
         <label>Amount</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="e-spendAmt" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="e-spendAmt" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -224,7 +228,7 @@
         <label>Paycheck Amount</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="m-paycheckAmt" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="m-paycheckAmt" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -245,7 +249,7 @@
         <label>Amount</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="m-extAmt" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="m-extAmt" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="modal-actions">
@@ -268,14 +272,14 @@
         <label>Target Amount</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="m-goalTarget" inputmode="decimal" placeholder="1,000.00" />
+          <input type="tel" id="m-goalTarget" inputmode="decimal" placeholder="1,000.00" />
         </div>
       </div>
       <div class="field">
         <label>Current Saved <span class="field-optional">(optional)</span></label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="m-goalSaved" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="m-goalSaved" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -309,7 +313,7 @@
         <label>Amount to Contribute</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="contributeAmount" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="contributeAmount" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="field">
@@ -336,7 +340,7 @@
         <label>Amount to Withdraw</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="w-amount" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="w-amount" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="modal-actions">
@@ -422,7 +426,7 @@
         <label>Amount</label>
         <div class="input-prefix-wrap">
           <span class="input-prefix">$</span>
-          <input type="text" id="recurringAmount" inputmode="decimal" placeholder="0.00" />
+          <input type="tel" id="recurringAmount" inputmode="decimal" placeholder="0.00" />
         </div>
       </div>
       <div class="field">

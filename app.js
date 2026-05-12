@@ -282,16 +282,6 @@ function addAIFloatingButton() {
     z-index: 100;
   `;
 
-  aiFab.onmouseenter = () => {
-    aiFab.style.transform = 'translateY(-2px)';
-    aiFab.style.boxShadow = '0 8px 20px rgba(108, 92, 231, 0.4)';
-  };
-
-  aiFab.onmouseleave = () => {
-    aiFab.style.transform = 'translateY(0)';
-    aiFab.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-  };
-
   aiFab.onclick = openAIModal;
   document.body.appendChild(aiFab);
 }
@@ -300,7 +290,6 @@ function addAIFloatingButton() {
 function toCents(amount) {
   if (amount === undefined || amount === null) return 0;
 
-  // Handle string input - exact parsing
   if (typeof amount === 'string') {
     const str = amount.trim();
     if (str === '') return 0;
@@ -338,7 +327,6 @@ function fromCents(cents) {
   return cents / 100;
 }
 
-// FIXED: formatNumberWithCommas - adds thousand separators
 function formatNumberWithCommas(num) {
   if (num === undefined || num === null || num === '') return '';
   const numStr = num.toString();
@@ -347,31 +335,24 @@ function formatNumberWithCommas(num) {
   return parts.join('.');
 }
 
-// FIXED: parseFormattedNumber - handles commas, currency symbols, European format, and invalid input
 function parseFormattedNumber(str) {
   if (!str || str === '') return '';
 
   let cleaned = str.toString().trim();
 
-  // Remove currency symbols and spaces
   cleaned = cleaned.replace(/[$€£¥]/g, '');
   cleaned = cleaned.replace(/\s/g, '');
 
-  // Handle European format (1.234,56) - check if last comma/period is thousands separator or decimal
   const hasCommaAsDecimal = cleaned.includes(',') && !cleaned.includes('.');
   if (hasCommaAsDecimal) {
-    // European format: 1.234,56 → 1234.56
     cleaned = cleaned.replace(/\./g, '');
     cleaned = cleaned.replace(',', '.');
   } else {
-    // Standard format: Remove commas (thousands separators)
     cleaned = cleaned.replace(/,/g, '');
   }
 
-  // Remove any remaining non-numeric characters except decimal point and minus
   cleaned = cleaned.replace(/[^0-9.-]/g, '');
 
-  // Handle multiple decimal points - keep only first
   const decimalIndex = cleaned.indexOf('.');
   if (decimalIndex !== -1) {
     const beforeDecimal = cleaned.substring(0, decimalIndex);
@@ -379,7 +360,6 @@ function parseFormattedNumber(str) {
     cleaned = beforeDecimal + '.' + afterDecimal;
   }
 
-  // Validate it's a proper number
   if (cleaned === '' || cleaned === '-' || cleaned === '.') return '';
 
   const num = parseFloat(cleaned);
@@ -388,11 +368,9 @@ function parseFormattedNumber(str) {
   return cleaned;
 }
 
-// FIXED: applyThousandSeparator - NO DUPLICATE LISTENERS, NO CURSOR JUMPING
 function applyThousandSeparator(inputEl) {
   if (!inputEl) return inputEl;
 
-  // Guard against attaching duplicate listeners using a data attribute
   if (inputEl._thousandSepAttached) return inputEl;
   inputEl._thousandSepAttached = true;
 
@@ -414,14 +392,12 @@ function applyThousandSeparator(inputEl) {
     if (val !== '' && val !== null && !isNaN(parseFloat(val))) {
       const rawValue = parseFloat(val).toString();
       this.value = rawValue;
-      // Restore cursor position if needed
       if (lastCursorPosition && lastCursorPosition <= this.value.length) {
         this.setSelectionRange(lastCursorPosition, lastCursorPosition);
       }
     }
   });
 
-  // Track cursor position on input to prevent jumping
   inputEl.addEventListener('keyup', function (e) {
     lastCursorPosition = this.selectionStart;
   });
@@ -735,11 +711,18 @@ function confirm(title, msg) {
 /* -------------------------- MODALS ------------------------------- */
 function openModal(id) {
   const modal = document.getElementById(id);
-  if (modal) modal.classList.add('open');
+  if (modal) {
+    modal.classList.add('open');
+    preventBodyScroll(true);
+  }
 }
 function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.classList.remove('open');
+  const anyOpen = document.querySelector('.modal-overlay.open, .confirm-overlay.open, .welcome-overlay.open');
+  if (!anyOpen) {
+    preventBodyScroll(false);
+  }
 }
 
 // Close modal on escape key
@@ -753,6 +736,7 @@ document.addEventListener('keydown', (e) => {
       confirmOverlay.classList.remove('open');
     }
     closeDrawer();
+    preventBodyScroll(false);
   }
 });
 
@@ -760,15 +744,17 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
   initializeAIAssistant();
   addAIFloatingButton();
+  enhanceTouchFeedback();
+  initDrawerSwipe();
+  fixNumberInputs();
+  updateSafeAreas();
 
-  // Override renderDashboard to include AI card
   const originalRenderDashboard = renderDashboard;
   window.renderDashboard = function () {
     originalRenderDashboard();
     setTimeout(addAIToDashboard, 100);
   };
 
-  // If dashboard is already rendered, add AI card
   if (document.getElementById('dashboard-content')?.children.length > 0) {
     addAIToDashboard();
   }
@@ -787,7 +773,6 @@ document.getElementById('themeBtn')?.addEventListener('click', () => {
   S.theme = S.theme === 'dark' ? 'light' : 'dark';
   applyTheme();
   save();
-  // FIXED: Destroy charts before re-rendering to prevent memory leaks
   destroyAllCharts();
   renderAll();
 });
@@ -807,7 +792,6 @@ function destroyAllCharts() {
 
 /* ======================== RECURRING TRANSACTIONS ======================== */
 
-// FIXED: calculateNextDueDate handles month-end dates correctly
 function calculateNextDueDate(rule) {
   const currentDue = new Date(rule.nextDueDate);
   let next = new Date(currentDue);
@@ -820,10 +804,8 @@ function calculateNextDueDate(rule) {
       next.setDate(currentDue.getDate() + 14);
       break;
     case 'monthly':
-      // FIXED: Handle month-end dates correctly (Jan 31 -> Feb 28/29)
       const originalDay = currentDue.getDate();
       next.setMonth(currentDue.getMonth() + 1);
-      // If we overflowed (e.g., Jan 31 -> Mar 3), set to last day of previous month
       if (next.getDate() !== originalDay) {
         next.setDate(0);
       }
@@ -997,7 +979,6 @@ function openRecurringModal(editId = null) {
   const endDateInput = document.getElementById('recurringEndDate');
   const activeCheckbox = document.getElementById('recurringActive');
 
-  // Populate category dropdown
   if (categorySelect) {
     categorySelect.innerHTML = '<option value="">Select category...</option>' +
       S.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -1031,7 +1012,6 @@ function openRecurringModal(editId = null) {
     if (activeCheckbox) activeCheckbox.checked = true;
   }
 
-  // Apply thousand separator to amount input
   if (amountInput) {
     amountInput._thousandSepAttached = false;
     applyThousandSeparator(amountInput);
@@ -1147,7 +1127,6 @@ document.getElementById('recurringSubmit')?.addEventListener('click', () => {
   const endDate = document.getElementById('recurringEndDate')?.value || null;
   const active = document.getElementById('recurringActive')?.checked || false;
 
-  // Parse amount with parseFormattedNumber
   const amountParsed = parseFormattedNumber(amountRaw);
   const amount = parseFloat(amountParsed);
 
@@ -1923,7 +1902,7 @@ function renderSpend() {
       </div>
       <div class="field">
         <label>Amount</label>
-        <input type="text" id="s-amt" inputmode="decimal" placeholder="0.00" />
+        <input type="tel" id="s-amt" inputmode="decimal" placeholder="0.00" />
       </div>
       <div class="field">
         <label>Note (optional)</label>
@@ -1979,22 +1958,18 @@ function renderSpend() {
   });
 }
 
-// FIXED: openSpendModalWithCategory - Stores category ID properly with BOTH methods
-// Global variable for quick category ID persistence
 window._pendingQuickCategoryId = null;
 
 function openSpendModalWithCategory(catId, catName) {
   const modal = document.getElementById('spendModal');
   const categorySelect = document.getElementById('m-spendCat');
 
-  // Populate categories
   if (categorySelect) {
     categorySelect.innerHTML = '<option value="">Select category…</option>' +
       S.categories.map(c => `<option value="${c.id}" ${c.id === catId ? 'selected' : ''}>${c.name} (${fmt(c.remaining)} left)</option>`).join('');
     categorySelect.value = catId;
   }
 
-  // FIXED: Store in BOTH dataset AND global variable for redundancy
   modal.dataset.quickCategoryId = catId;
   window._pendingQuickCategoryId = catId;
 
@@ -2097,10 +2072,8 @@ function renderHistory() {
     </div>
   `;
 
-  // FIXED: Properly attach clear data button event listener
   const clearDataBtn = el.querySelector('#clearDataBtn');
   if (clearDataBtn) {
-    // Remove any existing listeners by cloning
     const newClearBtn = clearDataBtn.cloneNode(true);
     clearDataBtn.parentNode.replaceChild(newClearBtn, clearDataBtn);
     newClearBtn.addEventListener('click', () => {
@@ -2129,7 +2102,7 @@ function renderHistory() {
   });
 }
 
-/* ══════════════════════════ ANALYTICS (UPDATED: Performance + Responsive) ════════════════════════════ */
+/* ══════════════════════════ ANALYTICS ════════════════════════════ */
 
 let currentAnalyticsPeriod = null;
 const ANALYTICS_COLLAPSE_KEY = 'analytics_collapsed_sections';
@@ -2193,14 +2166,12 @@ function renderAnalytics() {
     return;
   }
 
-  // Show loading spinner
   el.innerHTML = `
     <div class="analytics-loading">
       <i class="fas fa-spinner fa-pulse"></i> Loading analytics...
     </div>
   `;
 
-  // Defer rendering to avoid blocking UI
   setTimeout(() => {
     renderAnalyticsContent(el);
   }, 50);
@@ -2491,7 +2462,6 @@ function analyticsHeaderHandler(e) {
 }
 
 /* ══════════════════════════ SETTINGS ════════════════════════════ */
-// FIXED: renderSettings - Removed malformed comment from template string
 function renderSettings() {
   const el = document.getElementById('settings-content');
   if (!el) return;
@@ -2625,19 +2595,16 @@ function renderSettings() {
   el.querySelector('#set-editPaycheck')?.addEventListener('click', openPaycheckModal);
   el.querySelector('#addGoalBtn')?.addEventListener('click', openGoalModal);
   el.querySelector('#emptySettingsAddGoal')?.addEventListener('click', openGoalModal);
-
   el.querySelector('#set-payPeriod')?.addEventListener('change', e => {
     S.payPeriod = e.target.value;
     save();
     renderAll();
   });
-
   el.querySelector('#set-darkMode')?.addEventListener('change', e => {
     S.theme = e.target.checked ? 'dark' : 'light';
     applyTheme();
     save();
   });
-
   el.querySelector('#set-addPreset')?.addEventListener('click', () => {
     const name = document.getElementById('set-pName').value.trim();
     const pct = Number(document.getElementById('set-pPct').value);
@@ -2647,7 +2614,6 @@ function renderSettings() {
     renderSettings();
     toast('Preset added');
   });
-
   el.querySelectorAll('.preset-chip-del').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -2658,7 +2624,6 @@ function renderSettings() {
       toast('Preset removed');
     });
   });
-
   el.querySelectorAll('.goal-del-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       S.savings = S.savings.filter(g => g.id !== Number(btn.dataset.id));
@@ -2667,13 +2632,11 @@ function renderSettings() {
       toast('Goal deleted');
     });
   });
-
   el.querySelectorAll('.goal-contrib-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       openContributeModal(Number(btn.dataset.id));
     });
   });
-
   el.querySelector('#exportBtn')?.addEventListener('click', exportData);
   el.querySelector('#importBtn')?.addEventListener('click', () => document.getElementById('importFile').click());
   el.querySelector('#exportCsvBtn')?.addEventListener('click', exportCSV);
@@ -2688,7 +2651,6 @@ function renderSettings() {
   const importFile = document.getElementById('importFile');
   if (importFile) importFile.onchange = importData;
 
-  // Add this after other event listeners in renderSettings()
   const settingsClearBtn = el.querySelector('#settingsClearDataBtn');
   if (settingsClearBtn) {
     const newClearBtn = settingsClearBtn.cloneNode(true);
@@ -2819,7 +2781,6 @@ function submitContribution() {
 
   goal.saved = newSaved;
 
-  // Add to history
   S.history.push({
     id: uid(),
     categoryId: null,
@@ -2892,7 +2853,6 @@ document.getElementById('e-spendCancel')?.addEventListener('click', () => {
 });
 
 /* ══════════════════════ MODAL: PAYCHECK ══════════════════════════ */
-// FIXED: openPaycheckModal with proper amount parsing
 function openPaycheckModal() {
   const amtInput = document.getElementById('m-paycheckAmt');
   const extAmtInput = document.getElementById('m-extAmt');
@@ -2914,7 +2874,6 @@ function openPaycheckModal() {
   openModal('paycheckModal');
 }
 
-// FIXED: Paycheck modal submit handler - external funds ADD to paycheck
 document.getElementById('m-paycheckSubmit')?.addEventListener('click', () => {
   let amtRaw = document.getElementById('m-paycheckAmt')?.value;
   let amtParsed = parseFormattedNumber(amtRaw);
@@ -2929,7 +2888,6 @@ document.getElementById('m-paycheckSubmit')?.addEventListener('click', () => {
   let paycheckUpdated = false;
   let changes = [];
 
-  // CASE 1: User entered a paycheck amount (even if zero)
   if (amtRaw !== undefined && amtRaw !== '') {
     if (!isNaN(amtNum) && amtNum >= 0) {
       if (amtNum !== S.paycheckAmount) {
@@ -2943,14 +2901,12 @@ document.getElementById('m-paycheckSubmit')?.addEventListener('click', () => {
     }
   }
 
-  // CASE 2: User changed pay period
   if (per && per !== S.payPeriod) {
     S.payPeriod = per;
     changes.push(`pay period to ${per}`);
     paycheckUpdated = true;
   }
 
-  // FIXED: CASE 3: User added external funds - ADD to paycheck, not replace
   if (eSrc && eSrc !== '') {
     if (!isNaN(eAmtNum) && eAmtNum > 0) {
       S.externalFunds.push({
@@ -2960,7 +2916,6 @@ document.getElementById('m-paycheckSubmit')?.addEventListener('click', () => {
         period: S.currentPeriod,
         date: new Date().toISOString()
       });
-      // FIXED: Add external funds to paycheck amount
       newPaycheckAmount = addMoney(newPaycheckAmount, eAmtNum);
       paycheckUpdated = true;
       changes.push(`+${fmt(eAmtNum)} from ${eSrc}`);
@@ -2971,7 +2926,6 @@ document.getElementById('m-paycheckSubmit')?.addEventListener('click', () => {
     }
   }
 
-  // Apply changes if any
   if (paycheckUpdated) {
     S.paycheckAmount = newPaycheckAmount;
     calcAllocations();
@@ -2984,7 +2938,6 @@ document.getElementById('m-paycheckSubmit')?.addEventListener('click', () => {
     }
     closeModal('paycheckModal');
   } else {
-    // No changes made - show helpful message
     if (amtRaw === '' && (!eSrc || eSrc === '')) {
       toast('Enter a paycheck amount or external funds to update', 'error');
     } else if (amtRaw !== '' && isNaN(amtNum)) {
@@ -3018,7 +2971,6 @@ function renderPresetChips() {
   });
 }
 
-// addCategory function with proper validation
 document.getElementById('m-catSubmit')?.addEventListener('click', () => {
   const name = document.getElementById('m-catName')?.value.trim();
   const pctRaw = document.getElementById('m-catPct')?.value;
@@ -3069,7 +3021,6 @@ function openSpendModal() {
     applyThousandSeparator(amtInput);
   }
   document.getElementById('m-spendNote').value = '';
-  // Clear any quick mode data
   const modal = document.getElementById('spendModal');
   if (modal) {
     delete modal.dataset.quickCategoryId;
@@ -3077,17 +3028,14 @@ function openSpendModal() {
     const title = modal.querySelector('.modal-title');
     if (title) title.textContent = 'Add Spending';
   }
-  // FIXED: Clear global quick category variable
   window._pendingQuickCategoryId = null;
   openModal('spendModal');
 }
 
-// FIXED: Spend modal submit handler - works with both normal and quick mode
 document.getElementById('m-spendSubmit')?.addEventListener('click', async () => {
   const modal = document.getElementById('spendModal');
   let catId = null;
 
-  // FIXED: PRIORITIZE quick mode over select dropdown
   if (modal?.dataset.quickCategoryId) {
     catId = Number(modal.dataset.quickCategoryId);
   } else if (window._pendingQuickCategoryId) {
@@ -3118,7 +3066,6 @@ document.getElementById('m-spendSubmit')?.addEventListener('click', async () => 
 
   const success = await addSpending(catId, amt, note);
   if (success) {
-    // Reset modal - clear quick mode data
     if (modal) {
       delete modal.dataset.quickCategoryId;
       modal.classList.remove('quick-mode');
@@ -3127,7 +3074,6 @@ document.getElementById('m-spendSubmit')?.addEventListener('click', async () => 
       const categorySelect = document.getElementById('m-spendCat');
       if (categorySelect) categorySelect.value = '';
     }
-    // FIXED: Clear global quick category variable
     window._pendingQuickCategoryId = null;
     const amtInput = document.getElementById('m-spendAmt');
     if (amtInput) amtInput.value = '';
@@ -3147,7 +3093,6 @@ document.getElementById('m-spendCancel')?.addEventListener('click', () => {
     const categorySelect = document.getElementById('m-spendCat');
     if (categorySelect) categorySelect.value = '';
   }
-  // FIXED: Clear global quick category variable
   window._pendingQuickCategoryId = null;
   closeModal('spendModal');
 });
@@ -3225,7 +3170,6 @@ function openWithdrawModal() {
   openModal('withdrawModal');
 }
 
-// Withdraw modal with proper bank math
 document.getElementById('w-submit')?.addEventListener('click', () => {
   let amtRaw = document.getElementById('w-amount')?.value;
   let amtParsed = parseFormattedNumber(amtRaw);
@@ -3240,7 +3184,6 @@ document.getElementById('w-submit')?.addEventListener('click', () => {
     return;
   }
 
-  // Use bank math for all operations
   S.rollbackPool = subtractMoney(S.rollbackPool, amt);
   S.paycheckAmount = addMoney(S.paycheckAmount, amt);
   S.rollbackHistory.unshift({
@@ -3318,7 +3261,6 @@ function performDeleteCategory(id) {
   toast('Category deleted');
 }
 
-// updateSpending - properly updates both spending and history
 function updateSpending(id, newAmount, newNote, newCategoryId = null) {
   const spendingIndex = S.spending.findIndex(s => s.id === id);
   if (spendingIndex === -1) {
@@ -3343,7 +3285,6 @@ function updateSpending(id, newAmount, newNote, newCategoryId = null) {
 
   S.spending[spendingIndex] = updatedSpending;
 
-  // Update history as well
   const historyIndex = S.history.findIndex(h => h.id === id);
   if (historyIndex !== -1) {
     S.history[historyIndex] = {
@@ -3362,7 +3303,6 @@ function updateSpending(id, newAmount, newNote, newCategoryId = null) {
   return true;
 }
 
-// addSpending - async confirmation handled properly
 async function addSpending(catId, amtStr, note = '') {
   if (!catId) {
     toast('Select a category', 'error');
@@ -3383,7 +3323,6 @@ async function addSpending(catId, amtStr, note = '') {
 
   const balance = currentBalance();
 
-  // If spending would exceed balance, ask for confirmation first
   if (amt > balance && balance > 0) {
     const ok = await confirm('Warning', `This spending (${fmt(amt)}) exceeds your current balance (${fmt(balance)}). Continue anyway?`);
     if (!ok) return false;
@@ -3462,7 +3401,6 @@ async function clearAllocations() {
   toast('Allocations cleared');
 }
 
-// FIXED: Clear Data Modal with CONFIRM requirement - requires exactly "CONFIRM" typed
 function openClearDataModal() {
   const modal = document.getElementById('clearDataModal');
   const confirmInput = document.getElementById('clearDataConfirmInput');
@@ -3470,24 +3408,20 @@ function openClearDataModal() {
 
   if (!modal || !confirmInput || !confirmBtn) return;
 
-  // Reset input and button state EVERY TIME modal opens
   confirmInput.value = '';
   confirmBtn.disabled = true;
   confirmBtn.classList.add('disabled');
 
-  // Remove any existing event listeners by cloning and replacing
   const newInput = confirmInput.cloneNode(true);
   const newBtn = confirmBtn.cloneNode(true);
   confirmInput.parentNode.replaceChild(newInput, confirmInput);
   confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
 
-  // Update references
   const freshInput = document.getElementById('clearDataConfirmInput');
   const freshBtn = document.getElementById('clearDataConfirmBtn');
 
   if (!freshInput || !freshBtn) return;
 
-  // FIXED: Enable button only when "CONFIRM" (case-insensitive) is typed exactly
   const checkConfirm = () => {
     if (freshInput && freshBtn) {
       const isValid = freshInput.value.trim().toUpperCase() === 'CONFIRM';
@@ -3502,7 +3436,6 @@ function openClearDataModal() {
 
   freshInput.oninput = checkConfirm;
 
-  // Add keyboard enter support
   freshInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !freshBtn.disabled) {
       performClearAllData();
@@ -3523,7 +3456,6 @@ function openClearDataModal() {
     cancelBtn.parentNode.replaceChild(freshCancel, cancelBtn);
     freshCancel.onclick = () => {
       closeModal('clearDataModal');
-      // Reset for next time
       if (freshInput) freshInput.value = '';
       if (freshBtn) freshBtn.disabled = true;
     };
@@ -3531,21 +3463,17 @@ function openClearDataModal() {
 
   openModal('clearDataModal');
 
-  // Focus the input field
   setTimeout(() => {
     if (freshInput) freshInput.focus();
   }, 100);
 }
 
-// FIXED: Clear all data - completely resets state and localStorage (SINGLE VERSION)
 function performClearAllData() {
   try {
-    // Preserve theme and custom presets
     const oldTheme = S.theme;
     const oldPresets = S.customPresets;
     const hasSeenWelcome = localStorage.getItem('hasSeenWelcome_v2');
 
-    // Reset to default state
     S = {
       ...defaultState(),
       theme: oldTheme,
@@ -3555,25 +3483,12 @@ function performClearAllData() {
 
     if (hasSeenWelcome) localStorage.setItem('hasSeenWelcome_v2', hasSeenWelcome);
 
-    // Clear everything from localStorage
     localStorage.removeItem(STORE_KEY);
-
-    // Force save the clean state
     saveState(S);
-
-    // Recalculate everything
     calcAllocations();
-
-    // Re-render the entire UI
     renderAll();
-
-    // Show success message
     toast('All data cleared successfully!', 'success');
-
-    // Mark as clean since we just cleared everything
     clearDirty();
-
-    // Update last saved timestamp
     updateLastSaved();
 
   } catch (error) {
@@ -3632,10 +3547,12 @@ function exportCSV() {
 function closeDrawer() {
   document.getElementById('drawerOverlay').classList.remove('open');
   document.getElementById('sideDrawer').classList.remove('open');
+  preventBodyScroll(false);
 }
 function openDrawer() {
   document.getElementById('drawerOverlay').classList.add('open');
   document.getElementById('sideDrawer').classList.add('open');
+  preventBodyScroll(true);
 }
 function switchView(name) {
   const currentView = document.querySelector('.drawer-item.active')?.dataset.view;
@@ -3658,56 +3575,86 @@ document.getElementById('drawerOverlay')?.addEventListener('click', closeDrawer)
 document.querySelectorAll('.drawer-item').forEach(item => { item.addEventListener('click', () => switchView(item.dataset.view)); });
 
 /* ══════════════════════ SIDE DRAWER SWIPE TO CLOSE ══════════════════════════ */
-let touchStartX = 0;
-let touchCurrentX = 0;
+let touchStartXDrawer = 0;
+let touchCurrentXDrawer = 0;
 let isDraggingDrawer = false;
 
 function initDrawerSwipe() {
   const drawer = document.getElementById('sideDrawer');
   if (!drawer) return;
 
-  drawer.addEventListener('touchstart', (e) => {
-    touchStartX = e.touches[0].clientX;
-    isDraggingDrawer = true;
-    drawer.style.transition = 'none';
-  });
-
-  drawer.addEventListener('touchmove', (e) => {
-    if (!isDraggingDrawer) return;
-    touchCurrentX = e.touches[0].clientX;
-    const deltaX = touchCurrentX - touchStartX;
-    if (deltaX < 0) {
-      const translateX = Math.max(-280, deltaX);
-      drawer.style.transform = `translateX(${translateX}px)`;
-    }
-    e.preventDefault();
-  });
-
-  drawer.addEventListener('touchend', (e) => {
-    if (!isDraggingDrawer) return;
-    isDraggingDrawer = false;
-    drawer.style.transition = '';
-    const deltaX = touchCurrentX - touchStartX;
-    if (deltaX < -50) {
-      closeDrawer();
-    } else {
-      drawer.style.transform = '';
-    }
-    touchStartX = 0;
-    touchCurrentX = 0;
-  });
-
-  const overlay = document.getElementById('drawerOverlay');
-  if (overlay) {
-    overlay.addEventListener('touchstart', (e) => {
-      if (overlay.classList.contains('open')) {
-        closeDrawer();
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === 'class') {
+        if (drawer.classList.contains('open')) {
+          enableDrawerSwipe();
+        } else {
+          disableDrawerSwipe();
+        }
       }
     });
-  }
+  });
+  
+  observer.observe(drawer, { attributes: true });
 }
 
-initDrawerSwipe();
+function enableDrawerSwipe() {
+  const drawer = document.getElementById('sideDrawer');
+  if (!drawer) return;
+  
+  drawer.addEventListener('touchstart', onDrawerTouchStart, { passive: false });
+  drawer.addEventListener('touchmove', onDrawerTouchMove, { passive: false });
+  drawer.addEventListener('touchend', onDrawerTouchEnd);
+}
+
+function disableDrawerSwipe() {
+  const drawer = document.getElementById('sideDrawer');
+  if (!drawer) return;
+  
+  drawer.removeEventListener('touchstart', onDrawerTouchStart);
+  drawer.removeEventListener('touchmove', onDrawerTouchMove);
+  drawer.removeEventListener('touchend', onDrawerTouchEnd);
+  drawer.style.transform = '';
+}
+
+function onDrawerTouchStart(e) {
+  touchStartXDrawer = e.touches[0].clientX;
+  isDraggingDrawer = true;
+  const drawer = e.currentTarget;
+  drawer.style.transition = 'none';
+  drawer.style.willChange = 'transform';
+}
+
+function onDrawerTouchMove(e) {
+  if (!isDraggingDrawer) return;
+  touchCurrentXDrawer = e.touches[0].clientX;
+  const deltaX = touchCurrentXDrawer - touchStartXDrawer;
+  const drawer = e.currentTarget;
+  
+  if (deltaX < 0) {
+    const translateX = Math.max(-280, deltaX);
+    drawer.style.transform = `translateX(${translateX}px)`;
+  }
+  e.preventDefault();
+}
+
+function onDrawerTouchEnd(e) {
+  if (!isDraggingDrawer) return;
+  isDraggingDrawer = false;
+  const drawer = e.currentTarget;
+  drawer.style.transition = '';
+  drawer.style.willChange = '';
+  const deltaX = touchCurrentXDrawer - touchStartXDrawer;
+  
+  if (deltaX < -50) {
+    closeDrawer();
+  } else {
+    drawer.style.transform = '';
+  }
+  
+  touchStartXDrawer = 0;
+  touchCurrentXDrawer = 0;
+}
 
 /* ══════════════════════ KEYBOARD SHORTCUTS ══════════════════════════ */
 function handleKeyboardShortcuts(e) {
@@ -3775,6 +3722,93 @@ if ('serviceWorker' in navigator) {
   const url = URL.createObjectURL(blob);
   navigator.serviceWorker.register(url).catch(() => { });
 }
+
+/* ══════════════════════ MOBILE & TOUCH OPTIMIZATIONS ══════════════════════════ */
+
+function preventBodyScroll(shouldPrevent) {
+  if (shouldPrevent) {
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.classList.add('modal-open');
+  } else {
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.classList.remove('modal-open');
+  }
+}
+
+function scrollInputIntoView(inputElement) {
+  if (!inputElement) return;
+  setTimeout(() => {
+    inputElement.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  }, 300);
+}
+
+document.body.addEventListener('touchmove', function(e) {
+  const target = e.target;
+  const view = target.closest('.view');
+  if (view) {
+    const scrollTop = view.scrollTop;
+    const scrollHeight = view.scrollHeight;
+    const clientHeight = view.clientHeight;
+    
+    if (scrollTop === 0 && e.touches[0].clientY > 0) {
+      e.preventDefault();
+    }
+  }
+}, { passive: false });
+
+function updateSafeAreas() {
+  const statusBar = document.getElementById('statusBar');
+  if (statusBar) {
+    const safeTop = getComputedStyle(document.documentElement).getPropertyValue('--safe-top').trim();
+    statusBar.style.height = safeTop;
+  }
+}
+
+window.addEventListener('resize', updateSafeAreas);
+window.addEventListener('orientationchange', updateSafeAreas);
+updateSafeAreas();
+
+function enhanceTouchFeedback() {
+  document.addEventListener('touchstart', function(e) {
+    const target = e.target.closest('.cat-item, .spend-item, .goal-item, .recurring-item, .btn, .icon-btn, .drawer-item');
+    if (target) {
+      target.classList.add('touch-active');
+      setTimeout(() => target.classList.remove('touch-active'), 150);
+    }
+  });
+}
+
+window.addEventListener('popstate', () => {
+  const openModals = document.querySelectorAll('.modal-overlay.open, .confirm-overlay.open, .welcome-overlay.open');
+  openModals.forEach(modal => modal.classList.remove('open'));
+  if (document.getElementById('sideDrawer')?.classList.contains('open')) {
+    closeDrawer();
+  }
+  preventBodyScroll(false);
+});
+
+function fixNumberInputs() {
+  document.querySelectorAll('input[inputmode="decimal"]').forEach(input => {
+    if (input.getAttribute('type') !== 'tel') {
+      input.setAttribute('type', 'tel');
+    }
+  });
+}
+
+// Initialize all mobile enhancements
+document.addEventListener('DOMContentLoaded', () => {
+  enhanceTouchFeedback();
+  initDrawerSwipe();
+  fixNumberInputs();
+  updateSafeAreas();
+});
 
 /* ══════════════════════ INITIAL RENDER ══════════════════════════ */
 autoProcessRecurring();
